@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'widgets/login_page.dart';
+import 'pages/login_page.dart';
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -35,9 +34,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
         title: 'KampusKart',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 92, 241, 124)),
         ),
-        home: MyHomePage(),
+        home: LoginPage(),
     );
   }
 }
