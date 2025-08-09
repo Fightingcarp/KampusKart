@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kampus_kart/pages/store_page.dart';
+import 'package:kampus_kart/widgets/nav_rail.dart';
 
 // TODO: implement back-end logic;
 
@@ -73,7 +73,7 @@ class LoginPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => StorePage())
+                      MaterialPageRoute(builder: (context) => MyNavRail())
                     );
                   },
                   style: ElevatedButton.styleFrom(
