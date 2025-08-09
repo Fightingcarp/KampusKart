@@ -24,7 +24,7 @@ class _MyAppState extends State<MyApp> {
 
   void initialization() async {
     print('pausing....');
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 1000));
     print('unpausing....');
     FlutterNativeSplash.remove();
   }

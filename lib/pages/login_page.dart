@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_kart/pages/store_page.dart';
+
+// TODO: implement back-end logic;
 
 // Login Page of the App. 
 // Users will open immediately into this page after the splash screen.
@@ -17,7 +20,7 @@ class LoginPage extends StatelessWidget {
             children: [
               // Logo of the App
               Image.asset(
-                'assets/logo.png',
+                'assets/images/logo.png',
                 height: 100,
               ),
               const SizedBox(height: 20),
@@ -67,7 +70,12 @@ class LoginPage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => StorePage())
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
