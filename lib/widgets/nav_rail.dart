@@ -16,12 +16,12 @@ class _MyNavRailState extends State<MyNavRail> {
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = StorePage();
+        page = Placeholder();
       case 1:
         page = Placeholder();
-      case 3:
+      case 2:
         page = Placeholder();
-      case 4:
+      case 3:
         page = Placeholder();
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -54,8 +54,8 @@ class _MyNavRailState extends State<MyNavRail> {
                         label: 'Favorites',
                       ),
                       BottomNavigationBarItem(
-                        icon: Icon(Icons.menu),
-                        label: 'About',
+                        icon: Icon(Icons.chat),
+                        label: 'Messages',
                       ),
                     ],
                     currentIndex: selectedIndex,
