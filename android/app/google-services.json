@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "678290258619",
+    "project_id": "kampuskart-3987a",
+    "storage_bucket": "kampuskart-3987a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:678290258619:android:cca204686ceba38e26c79e",
+        "android_client_info": {
+          "package_name": "com.example.kampus_kart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDR1DN59HxxNEUuhtiPpdw4WNCMShJQK_4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
