@@ -5,7 +5,7 @@ import 'pages/login_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-
+// Main function of the App
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -29,6 +29,7 @@ class _MyAppState extends State<MyApp> {
     initialization();
   }
 
+  // Launches Splash Screen
   void initialization() async {
     print('pausing....');
     await Future.delayed(const Duration(milliseconds: 1000));
@@ -36,6 +37,7 @@ class _MyAppState extends State<MyApp> {
     FlutterNativeSplash.remove();
   }
 
+  // Calls login page after the Splash screen
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

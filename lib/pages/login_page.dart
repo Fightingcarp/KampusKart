@@ -7,7 +7,7 @@ import 'package:kampus_kart/widgets/nav_rail.dart';
 // Users will open immediately into this page after the splash screen.
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key})
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
   // LOGIN LOGIC
   Future<void> _login() async {
     if (!_validateInput()) return;
-
+    
     setState(() => _isLoading = true);
     try {
       // Looks for user email & password in the database
@@ -58,6 +58,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
       // Shows small widget announcing Login
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login Succesful!'))
       );
@@ -82,6 +83,7 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account Created! You are now logged in.'))
       );
@@ -108,6 +110,7 @@ class _LoginPageState extends State<LoginPage> {
       await _auth.sendPasswordResetEmail(
         email: _emailController.text.trim(),
       );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent!')),
       );
@@ -196,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: _forgotPassword,
                     child: const Text('Forgot Password?'),
                   )
                 ),
@@ -227,12 +230,12 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(_isLogin
+                  Text(_isLogin
                     ? "Don't have an account?"
                     : 'Already have an account?'),
                   TextButton(
                     onPressed: () {},
-                    child: const Text(_isLogin ? 'Sign Up' : 'Login'),
+                    child: Text(_isLogin ? 'Sign Up' : 'Login'),
                   )
                 ],
               )
