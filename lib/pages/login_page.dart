@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:another_flushbar/flushbar.dart';
+
 import 'package:kampus_kart/widgets/nav_rail.dart';
 
 // Login Page of the App. 
 // Users will open immediately into this page after the splash screen.
+
+void showTopMessage(BuildContext context, String message, {Color? color, IconData? icon}) {
+  Flushbar(
+    message: message,
+    backgroundColor: const Color.fromARGB(255, 45, 196, 138),
+    duration: const Duration(seconds: 3),
+    flushbarPosition: FlushbarPosition.TOP,
+    borderRadius: BorderRadius.circular(10),
+    margin: const EdgeInsets.all(8),
+    animationDuration: const Duration(milliseconds: 300),
+    icon: Icon(icon ?? Icons.dangerous_outlined, color: Colors.white),
+  ).show(context);
+}
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,17 +44,13 @@ class _LoginPageState extends State<LoginPage> {
     String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email and password cannot be empty')),
-      );
+      showTopMessage(context, 'Email and password cannot be empty!');
       return false;
     }
 
     // Basic email format check
     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address.')),
-      );
+      showTopMessage(context, 'Email and password invalid!');
       return false;
     }
 
@@ -59,23 +70,13 @@ class _LoginPageState extends State<LoginPage> {
       );
       // Shows small widget announcing Login
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login Succesful!'),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => MyNavRail())
+        MaterialPageRoute(
+          builder: (context) => MyNavRail(
+            showLogin: true,
+          )
+        ),
       );
     } on FirebaseAuthException catch (e) {
       _showError(e);
@@ -95,23 +96,13 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Account Created! You are now logged in.'),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => MyNavRail())
+        MaterialPageRoute(
+          builder: (context) => MyNavRail(
+            showSignUp: true,
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       _showError(e);
@@ -123,39 +114,33 @@ class _LoginPageState extends State<LoginPage> {
   // FORGOT PASSWORD LOGIC
   Future<void> _forgotPassword() async {
     if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email first!')),
-      );
-      return;
+      showTopMessage(context, 'Please enter your email first!');
     }
     try {
       await _auth.sendPasswordResetEmail(
         email: _emailController.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent!')),
-      );
+      showTopMessage(context, 'Password reset email sent!');
     } on FirebaseAuthException catch (e) {
       _showError(e);
     }
   }
 
   void _showError(FirebaseAuthException e) {
+    print('FirebaseAuthException code: ${e.code}'); // DEBUG
+    print('Message from Firebase: ${e.message}'); // DEBUG
+
     String message = 'An error occured.';
     switch (e.code) {
-      case 'user-not-found':
-        message = 'No user found for that email.';
-      case 'wrong-password':
-        message = 'Wrong password.';
+      case 'invalid-credential':
+        message = 'Wrong Email or Password.';
       case 'email-already-in-use':
         message = 'Email already in use.';
-      case 'invalid-email':
-        message = 'Invalid email format.';
       case 'weak-password':
         message = 'Password should be at least 6 characters.';
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showTopMessage(context, message);
   }
 
   @override

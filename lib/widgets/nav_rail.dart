@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_kart/pages/login_page.dart';
 import 'package:kampus_kart/pages/store_page.dart';
 
 class MyNavRail extends StatefulWidget {
+  final bool showLogin;
+  final bool showSignUp;
+  const MyNavRail({
+    this.showLogin = false, 
+    this.showSignUp = false,
+    super.key,
+  });
+
   @override
   State<MyNavRail> createState() => _MyNavRailState();
 }
 
-class _MyNavRailState extends State<MyNavRail> {
+class _MyNavRailState extends State<MyNavRail> {  
   var selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showLogin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showTopMessage(context, 'Login Succesful!');
+      });
+    } else if (widget.showSignUp) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showTopMessage(context, 'Sign Up Successful! You can now Login.');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
