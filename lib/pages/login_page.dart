@@ -60,7 +60,18 @@ class _LoginPageState extends State<LoginPage> {
       // Shows small widget announcing Login
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Succesful!'))
+        SnackBar(
+          content: Text('Login Succesful!'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       Navigator.pushReplacement(
         context,
@@ -85,7 +96,18 @@ class _LoginPageState extends State<LoginPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account Created! You are now logged in.'))
+        SnackBar(
+          content: Text('Account Created! You are now logged in.'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       Navigator.pushReplacement(
         context,
@@ -234,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
                     ? "Don't have an account?"
                     : 'Already have an account?'),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => setState(() => _isLogin = !_isLogin),
                     child: Text(_isLogin ? 'Sign Up' : 'Login'),
                   )
                 ],
