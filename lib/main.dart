@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+
+import 'package:kampus_kart/widgets/nav_rail.dart';
 import 'pages/login_page.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -15,37 +18,36 @@ void main() async {
   runApp(MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    initialization();
-  }
-
-  // Launches Splash Screen
-  void initialization() async {
-    print('pausing....');
-    await Future.delayed(const Duration(milliseconds: 1000));
-    print('unpausing....');
-    FlutterNativeSplash.remove();
-  }
-
-  // Calls login page after the Splash screen
+  // Shows Page` after the Splash screen
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'KampusKart',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 92, 241, 124)),
-        ),
-        home: LoginPage(),
+      title: 'KampusKart',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 92, 241, 124)),
+      ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SizedBox.shrink();
+          }
+          FlutterNativeSplash.remove();
+
+          Widget targetPage = 
+            snapshot.hasData ? const MyNavRail() : const LoginPage();
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
+            child: targetPage,
+          );
+        },
+      ),
     );
   }
 }
