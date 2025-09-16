@@ -40,7 +40,7 @@ class _MyNavRailState extends State<MyNavRail> {
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = Placeholder();
+        page = HomePage();
       case 1:
         page = Placeholder();
       case 2:

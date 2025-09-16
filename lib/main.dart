@@ -21,7 +21,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // Shows Page` after the Splash screen
+  // Shows Page after the Splash screen
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
