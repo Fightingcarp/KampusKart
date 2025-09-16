@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kampus_kart/pages/login_page.dart';
+import 'package:kampus_kart/pages/home_page.dart';
 import 'package:kampus_kart/pages/store_page.dart';
 
 class MyNavRail extends StatefulWidget {
@@ -67,6 +68,9 @@ class _MyNavRailState extends State<MyNavRail> {
                 Expanded(child: mainArea),
                 SafeArea(
                   child: BottomNavigationBar(
+                    showUnselectedLabels: true,
+                    selectedItemColor: Colors.black,
+                    unselectedItemColor: Colors.grey,
                     items: [
                       BottomNavigationBarItem(
                         icon: Icon(Icons.home),
@@ -74,11 +78,15 @@ class _MyNavRailState extends State<MyNavRail> {
                       ),
                       BottomNavigationBarItem(
                         icon: Icon(Icons.favorite),
-                        label: 'Favorites',
+                        label: 'Store',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.store),
+                        label: 'Seller',
                       ),
                       BottomNavigationBarItem(
                         icon: Icon(Icons.chat),
-                        label: 'Messages',
+                        label: 'Chat',
                       ),
                     ],
                     currentIndex: selectedIndex,
@@ -100,15 +108,19 @@ class _MyNavRailState extends State<MyNavRail> {
                     destinations: [
                       NavigationRailDestination(
                         icon: Icon(Icons.store),
-                        label: Text('Store'),
+                        label: Text('Home'),
                       ),
                       NavigationRailDestination(
                         icon: Icon(Icons.person),
+                        label: Text('Store'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.chat),
                         label: Text('Seller'),
                       ),
                       NavigationRailDestination(
                         icon: Icon(Icons.chat),
-                        label: Text('Messages'),
+                        label: Text('Chat'),
                       ),
                     ],
                     selectedIndex: selectedIndex,
