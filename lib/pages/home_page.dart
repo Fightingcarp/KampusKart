@@ -18,6 +18,27 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<double> _fetchAverageRating(String productId) async {
+    final reviewsSnap = await FirebaseFirestore.instance
+      .collection('products')
+      .doc(productId)
+      .collection('reviews')
+      .get();
+
+    if (reviewsSnap.docs.isEmpty) return 0.0;
+
+    double total = 0;
+    int count = 0;
+    for (var doc in reviewsSnap.docs) {
+      final rating = doc['rating'];
+      if (rating is num) {
+        total += rating.toDouble();
+        count++;
+      }
+    }
+    return count == 0 ? 0.0 : total / count;
+  }
+
   // Helper to asynchronously fetch the store name for each product
   Future<String?> _fetchStoreName(String storeId) async {
     final doc = await FirebaseFirestore.instance.collection('stores').doc(storeId).get();
@@ -37,7 +58,7 @@ class _HomePageState extends State<HomePage> {
               hintText: 'Search Products',
               prefixIcon: Icon(Icons.search),
               filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
+              fillColor: Colors.grey[300],
               contentPadding: EdgeInsets.symmetric(vertical: 0),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
@@ -154,6 +175,29 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                   SizedBox(height: 4),
+
+                                  // Show average rating for each product
+                                  FutureBuilder<double>(
+                                    future: _fetchAverageRating(doc.id),
+                                    builder: (context, snap) {
+                                      if (snap.connectionState == ConnectionState.waiting) {
+                                        return Text('Rating: ...',
+                                          style: TextStyle(color: Colors.grey[600], fontSize: 12));
+                                      }
+                                      final avg = snap.data ?? 0.0;
+                                      return Row(
+                                        children: [
+                                          Icon(Icons.star,
+                                            color: Colors.amber[700], size: 16),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            avg.toStringAsFixed(1),
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  ),
                                   // Show store name asynchronously for each product
                                   FutureBuilder<String?>(
                                     future: _fetchStoreName(data['storeId']),

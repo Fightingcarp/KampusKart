@@ -42,7 +42,7 @@ class _MyNavRailState extends State<MyNavRail> {
       case 0:
         page = HomePage();
       case 1:
-        page = Placeholder();
+        page = StorePage();
       case 2:
         page = Placeholder();
       case 3:
