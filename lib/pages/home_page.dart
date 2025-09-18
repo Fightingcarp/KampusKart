@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
             },
           ),
         ],
-        // put the nav bar right **under** the search bar
+        // nav bar for Products and Stores 
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(kBottomNavigationBarHeight),
           child: NavigationBar(

@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'package:kampus_kart/pages/login_page.dart';
 import 'package:kampus_kart/pages/home_page.dart';
 import 'package:kampus_kart/pages/me_page.dart';
+import 'package:kampus_kart/pages/store_homepage.dart';
 
 class MyNavRail extends StatefulWidget {
   final bool showLogin;
@@ -133,7 +135,7 @@ class _MyNavRailState extends State<MyNavRail> {
     if (isSeller!) {
       switch (selectedIndex) {
         case 0:
-          page = const Placeholder(); // Store page
+          page = StorePage(); // Store page
         case 1:
           page = const Placeholder(); // Orders page
         case 2:
@@ -152,7 +154,7 @@ class _MyNavRailState extends State<MyNavRail> {
         case 2:
           page = const Placeholder(); // Notifications page
         case 3:
-          page = const MePage(); 
+          page = MePage(); 
         default:
           throw UnimplementedError('No page for $selectedIndex');
       }

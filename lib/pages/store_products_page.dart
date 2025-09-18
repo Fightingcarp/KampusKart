@@ -48,6 +48,7 @@ class StoreProductsPage extends StatelessWidget {
                         ),
                     ],
                   ),
+                const Divider(height: 32),
               ],
             ),
           ),

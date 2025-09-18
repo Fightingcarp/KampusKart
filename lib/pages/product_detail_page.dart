@@ -64,7 +64,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(product['name'] ?? 'Product Details'),
+        title: Text('Product Details'),
       ),
       body: SafeArea(
         child: Column(
