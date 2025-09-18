@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:kampus_kart/pages/product_page.dart';
+import 'package:kampus_kart/pages/product_detail_page.dart';
 
 class StoreProductsPage extends StatelessWidget {
   final String storeId;
@@ -123,11 +123,104 @@ class StoreProductsPage extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 4),
-                                  Text(
-                                    '₱${product['price'] != null ? product['price'].toString() : 'N/A'}',
-                                    style: TextStyle(
-                                      color: Colors.green[700], fontWeight: FontWeight.bold,
-                                    ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+
+                                      Builder(
+                                        builder: (_) {
+                                          final sizes = (product['sizes'] != null && product['sizes'] is Map<String, dynamic>)
+                                            ? product['sizes'] as Map<String, dynamic>
+                                            : {};
+
+                                          if (sizes.isNotEmpty) {
+                                            // Collect all numeric prices from size entries
+                                            final List<double> sizePrices = sizes.entries
+                                              .map((e) => (e.value['price'] as num?)?.toDouble() ?? 0)
+                                              .toList();
+                                            if (sizePrices.isNotEmpty) {
+                                              final double minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
+                                              final double maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
+
+                                              // Display as a range only if min != max
+                                              if (minPrice != maxPrice) {
+                                                return Text(
+                                                  '₱${minPrice.toStringAsFixed(2)} - ₱${maxPrice.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                    color: Colors.green[700],
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                );
+                                              } else {
+                                                return Text(
+                                                  '₱${minPrice.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                    color: Colors.green[700],
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          }
+
+                                          // fallback to regular price field if no sizes or empty
+                                          return Text(
+                                            product['price'] != null
+                                              ? '₱${(product['price'] as num).toStringAsFixed(2)}'
+                                              : '₱N/A',
+                                            style: TextStyle(
+                                              color: Colors.green[700],
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        },
+                                      ),
+
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('products')
+                                            .doc(docId)
+                                            .collection('reviews')
+                                            .snapshots(),
+                                        builder: (context, reviewSnapshot) {
+                                          if (reviewSnapshot.connectionState == ConnectionState.waiting) {
+                                            return const SizedBox(
+                                                width: 30,
+                                                height: 14,
+                                                child: Center(
+                                                    child: SizedBox(
+                                                        width: 10,
+                                                        height: 10,
+                                                        child: CircularProgressIndicator(strokeWidth: 1))));
+                                          }
+                                          if (!reviewSnapshot.hasData || reviewSnapshot.data!.docs.isEmpty) {
+                                            return const Text(
+                                              'No reviews',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                                            );
+                                          }
+
+                                          final reviews = reviewSnapshot.data!.docs;
+                                          double total = 0;
+                                          for (var r in reviews) {
+                                            final data = r.data() as Map<String, dynamic>;
+                                            total += (data['rating'] ?? 0).toDouble();
+                                          }
+                                          final avg = total / reviews.length;
+
+                                          return Row(
+                                            children: [
+                                              const Icon(Icons.star, size: 14, color: Colors.amber),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                avg.toStringAsFixed(1),
+                                                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
                                   if (product['createdAt'] != null)
                                     Text(
