@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_kart/pages/product_settings_page.dart';
 import 'package:kampus_kart/pages/store_settings_page.dart';
 
 class StorePage extends StatefulWidget {
@@ -27,7 +28,7 @@ class _StorePageState extends State<StorePage> {
               NavigationDestination(
                 icon: Icon(Icons.store_outlined),
                 selectedIcon: Icon(Icons.store),
-                label: 'Stores',
+                label: 'Settings',
               ),
               NavigationDestination(
                 icon: Icon(Icons.shopping_bag_outlined),
@@ -40,7 +41,7 @@ class _StorePageState extends State<StorePage> {
       ),
       body: _selectedTab == 0
         ? StoreSettingsPage()
-        : Placeholder()
+        : StoreProductsPage(),
     );
   }
 }

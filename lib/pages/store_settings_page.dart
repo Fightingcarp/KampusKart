@@ -7,9 +7,10 @@ class StoreSettingsPage extends StatefulWidget {
 
   @override
   State<StoreSettingsPage> createState() => _StoreSettingsPageState();
-  }
+}
 
-  class _StoreSettingsPageState extends State<StoreSettingsPage> {
+// Controller for editable fields
+class _StoreSettingsPageState extends State<StoreSettingsPage> {
     final _formKey = GlobalKey<FormState>();
     final _nameCtrl = TextEditingController();
     final _descCtrl = TextEditingController();
@@ -19,7 +20,7 @@ class StoreSettingsPage extends StatefulWidget {
     final _contactEmailCtrl = TextEditingController();
 
     bool _saving = false;
-    String? _storeDocId; // <-- store the actual Firestore doc ID we find
+    String? _storeDocId; 
 
     @override
     void initState() {
@@ -41,7 +42,7 @@ class StoreSettingsPage extends StatefulWidget {
         final doc = snap.docs.first;
         final data = doc.data();
 
-        _storeDocId = doc.id;                // remember the doc ID
+        _storeDocId = doc.id;               
         _nameCtrl.text = data['name'] ?? '';
         _descCtrl.text = data['description'] ?? '';
         _logoUrlCtrl.text = data['logoUrl'] ?? '';

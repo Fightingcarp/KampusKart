@@ -178,6 +178,7 @@ class _MyNavRailState extends State<MyNavRail> {
               children: [
                 Expanded(child: mainArea),
                 SafeArea(
+                  top: false,
                   child: BottomNavigationBar(
                     showUnselectedLabels: true,
                     selectedItemColor: Colors.black,
