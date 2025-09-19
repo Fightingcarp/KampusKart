@@ -61,7 +61,7 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
       _sizes = (data['sizes'] as Map<String, dynamic>)
         .entries
         .map((e) => {
-          'id': e.key,
+          'id': e.key.isNotEmpty ? e.key : DateTime.now().millisecondsSinceEpoch.toString(),
           'name': e.value['name'] ?? '',
           'price': e.value['price'] ?? 0,
           'stock': e.value['stock'] ?? 0
@@ -109,7 +109,6 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
     } else {
       data['price'] = double.tryParse(_priceCtrl.text.trim()) ?? 0;
       data['stock'] = int.tryParse(_stockCtrl.text.trim()) ?? 0;
-      data['sizes'] = FieldValue.delete();
     }
 
     final products = FirebaseFirestore.instance.collection('products');
@@ -380,8 +379,31 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
                             )
                           : const Icon(Icons.image_not_supported),
                         title: Text(data['name'] ?? 'Unnamed'),
-                        subtitle: Text(
-                          '₱${(data['price'] ?? 0).toString()} • Stock: ${(data['stock'] ?? 0).toString()}',
+                        subtitle: Builder(
+                          builder: (_) {
+                            if (data['sizes'] is Map) {
+                              final sizes = (data['sizes'] as Map<String, dynamic>).values;
+                              final prices = sizes
+                                .map((s) => (s['price'] ?? 0) as num)
+                                .toList();
+                              final stocks = sizes
+                                .map((s) => (s['stock'] ?? 0) as num)
+                                .toList();
+                              final minPrice = prices.isEmpty ? 0 : prices.reduce((a, b) => a < b ? a : b);
+                              final maxPrice = prices.isEmpty ? 0 : prices.reduce((a, b) => a > b ? a : b);
+                              final totalStock = stocks.fold<num>(0, (a, b) => a + b);
+
+                              return Text(
+                                prices.isEmpty
+                                  ? 'No sizes'
+                                  : '₱$minPrice - ₱$maxPrice • Total stock: $totalStock',
+                              );
+                            } else {
+                              return Text(
+                                '₱${(data['price'] ?? 0)} • Stock: ${(data['stock'] ?? 0)}',
+                              );
+                            }
+                          },
                         ),
                         onTap: () => _loadProductData(data, doc.id),
                       ),

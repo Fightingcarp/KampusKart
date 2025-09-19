@@ -6,26 +6,12 @@ class ProductsSection extends StatelessWidget {
   final String searchQuery;
   const ProductsSection({super.key, required this.searchQuery});
 
-  Future<double> _fetchAverageRating(String productId) async {
-    final reviewsSnap = await FirebaseFirestore.instance
-        .collection('products')
-        .doc(productId)
-        .collection('reviews')
-        .get();
-
-    if (reviewsSnap.docs.isEmpty) return 0.0;
-
-    double total = 0;
-    for (var doc in reviewsSnap.docs) {
-      final rating = doc['rating'];
-      if (rating is num) total += rating.toDouble();
-    }
-    return total / reviewsSnap.docs.length;
-  }
-
+  // 🔹 No _fetchAverageRating needed anymore
   Future<String?> _fetchStoreName(String storeId) async {
-    final doc =
-        await FirebaseFirestore.instance.collection('stores').doc(storeId).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('stores')
+        .doc(storeId)
+        .get();
     return doc.exists ? doc['name'] as String? : null;
   }
 
@@ -44,7 +30,7 @@ class ProductsSection extends StatelessWidget {
         final filtered = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final name = (data['name'] ?? '').toLowerCase();
-          return name.contains(searchQuery);
+          return name.contains(searchQuery.toLowerCase());
         }).toList();
 
         if (filtered.isEmpty) {
@@ -63,6 +49,7 @@ class ProductsSection extends StatelessWidget {
           itemBuilder: (context, i) {
             final doc = filtered[i];
             final data = doc.data() as Map<String, dynamic>;
+            final docId = doc.id;
 
             return Card(
               elevation: 3,
@@ -75,7 +62,7 @@ class ProductsSection extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ProductDetailPage(product: data, productId: doc.id),
+                          ProductDetailPage(product: data, productId: docId),
                     ),
                   );
                 },
@@ -83,7 +70,7 @@ class ProductsSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: data['imageUrl'] != null
+                      child: data['imageUrl'] != null && data['imageUrl'] != ""
                           ? ClipRRect(
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(12)),
@@ -110,22 +97,22 @@ class ProductsSection extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+
+                          // ---------- Price (handles sizes or single price)
                           Builder(
                             builder: (_) {
-                              final sizes = (data['sizes'] != null && data['sizes'] is Map<String, dynamic>)
-                                ? data['sizes'] as Map<String, dynamic>
-                                : {};
-                              
+                              final sizes = (data['sizes'] != null &&
+                                      data['sizes'] is Map<String, dynamic>)
+                                  ? data['sizes'] as Map<String, dynamic>
+                                  : {};
                               if (sizes.isNotEmpty) {
-                                // Collect all numeric prices from size entries
-                                final List<double> sizePrices = sizes.entries
-                                  .map((e) => (e.value['price'] as num?)?.toDouble() ?? 0)
-                                  .toList();
+                                final sizePrices = sizes.entries
+                                    .map((e) =>
+                                        (e.value['price'] as num?)?.toDouble() ?? 0)
+                                    .toList();
                                 if (sizePrices.isNotEmpty) {
-                                  final double minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
-                                  final double maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
-
-                                  // Display as a range only if min != max
+                                  final minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
+                                  final maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
                                   if (minPrice != maxPrice) {
                                     return Text(
                                       '₱${minPrice.toStringAsFixed(2)} - ₱${maxPrice.toStringAsFixed(2)}',
@@ -145,12 +132,10 @@ class ProductsSection extends StatelessWidget {
                                   }
                                 }
                               }
-
-                              // fallback to regular price field if no sizes or empty
                               return Text(
                                 data['price'] != null
-                                  ? '₱${(data['price'] as num).toStringAsFixed(2)}'
-                                  : '₱N/A',
+                                    ? '₱${(data['price'] as num).toStringAsFixed(2)}'
+                                    : '₱N/A',
                                 style: TextStyle(
                                   color: Colors.green[700],
                                   fontWeight: FontWeight.bold,
@@ -159,27 +144,61 @@ class ProductsSection extends StatelessWidget {
                             },
                           ),
                           const SizedBox(height: 4),
-                          FutureBuilder<double>(
-                            future: _fetchAverageRating(doc.id),
-                            builder: (context, snap) {
-                              if (snap.connectionState ==
+
+                          // ---------- ✅ Reviews: Same "No reviews" pattern as StoreProductsPage
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('products')
+                                .doc(docId)
+                                .collection('reviews')
+                                .snapshots(),
+                            builder: (context, reviewSnapshot) {
+                              if (reviewSnapshot.connectionState ==
                                   ConnectionState.waiting) {
-                                return Text('Rating: ...',
-                                    style: TextStyle(
-                                        color: Colors.grey[600], fontSize: 12));
+                                return const SizedBox(
+                                  width: 30,
+                                  height: 14,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 10,
+                                      height: 10,
+                                      child: CircularProgressIndicator(strokeWidth: 1),
+                                    ),
+                                  ),
+                                );
                               }
-                              final avg = snap.data ?? 0.0;
+                              if (!reviewSnapshot.hasData ||
+                                  reviewSnapshot.data!.docs.isEmpty) {
+                                return const Text(
+                                  'No reviews',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                );
+                              }
+
+                              final reviews = reviewSnapshot.data!.docs;
+                              double total = 0;
+                              for (var r in reviews) {
+                                final reviewData = r.data() as Map<String, dynamic>;
+                                total += (reviewData['rating'] ?? 0).toDouble();
+                              }
+                              final avg = total / reviews.length;
+
                               return Row(
                                 children: [
-                                  Icon(Icons.star,
-                                      color: Colors.amber, size: 16),
+                                  const Icon(Icons.star,
+                                      size: 14, color: Colors.amber),
                                   const SizedBox(width: 2),
-                                  Text(avg.toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12)),
+                                  Text(
+                                    avg.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black87),
+                                  ),
                                 ],
                               );
                             },
                           ),
+
+                          // ---------- Store name
                           FutureBuilder<String?>(
                             future: _fetchStoreName(data['storeId']),
                             builder: (context, snap) {
@@ -190,9 +209,12 @@ class ProductsSection extends StatelessWidget {
                                         color: Colors.grey[600], fontSize: 12));
                               }
                               if (!snap.hasData || snap.data == null) {
-                                return Text('Store: Unknown',
-                                    style: TextStyle(
-                                        color: const Color.fromARGB(255, 68, 29, 29), fontSize: 12));
+                                return const Text(
+                                  'Store: Unknown',
+                                  style: TextStyle(
+                                      color: Color.fromARGB(255, 68, 29, 29),
+                                      fontSize: 12),
+                                );
                               }
                               return Text(
                                 snap.data!,
