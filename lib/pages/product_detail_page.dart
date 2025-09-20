@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -39,6 +40,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Future<void> _submitReview() async {
     if (_userRating == null || (_userReviewText?.trim().isEmpty ?? true)) return;
     setState(() => _submitting = true);
+    final user = FirebaseAuth.instance.currentUser;
+
+    
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to review')),
+      );
+      setState(() => _submitting = false);
+      return;
+    }
+
     await FirebaseFirestore.instance
         .collection('products')
         .doc(widget.productId)
@@ -46,6 +58,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         .add({
       'rating': _userRating,
       'reviewText': _userReviewText,
+      'userId': user.uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
     setState(() {
@@ -251,15 +264,39 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 itemCount: reviews.length,
                                 itemBuilder: (context, i) {
                                   final rev = reviews[i];
-                                  return ListTile(
-                                    leading: rev['rating'] != null
-                                        ? const Icon(Icons.star,
-                                            color: Colors.amber)
-                                        : null,
-                                    title: Text(rev['reviewText'] ?? ''),
-                                    subtitle: rev['rating'] != null
-                                        ? Text("Rating: ${rev['rating']}")
-                                        : null,
+                                  final String? userId = rev['userId'] as String?;
+                                  final double? rating = (rev['rating'] as num?)?.toDouble();
+                                  final String reviewText = rev['reviewText'] ?? '';
+                                  
+                                  if (userId == null) {
+                                    return ListTile(
+                                      leading: rating != null
+                                          ? const Icon(Icons.star, color: Colors.amber)
+                                          : null,
+                                      title: Text(reviewText),
+                                      subtitle: rating != null
+                                          ? Text("Rating: $rating")
+                                          : null,
+                                    );
+                                  }
+
+                                  return FutureBuilder<DocumentSnapshot>(
+                                    future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+                                    builder: (context, userSnap) {
+                                      String username = 'Anonymous';
+                                      if (userSnap.hasData && userSnap.data!.exists) {
+                                        final data = userSnap.data!.data() as Map<String, dynamic>;
+                                        username = data['userName'] ?? 'Anonymous';
+                                      }
+
+                                      return ListTile(
+                                        leading: rating != null ? const Icon(Icons.star, color: Colors.amber) : null,
+                                        title: Text(reviewText),
+                                        subtitle: Text(
+                                          rating != null ? 'Rating: $rating • $username' : 'by $username',
+                                        ),
+                                      );
+                                    },
                                   );
                                 },
                               );

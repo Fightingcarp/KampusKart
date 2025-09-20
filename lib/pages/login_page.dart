@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:another_flushbar/flushbar.dart';
 
@@ -91,16 +92,27 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
     try {
-      await _auth.createUserWithEmailAndPassword(
+      UserCredential cred = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      await FirebaseFirestore.instance.collection('users')
+        .doc(cred.user!.uid)
+        .set({
+          'role': 'user',
+          'userName': '',
+          'email': cred.user!.email,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => MyNavRail(
             showSignUp: true,
+            initialIndex: 3,
           ),
         ),
       );

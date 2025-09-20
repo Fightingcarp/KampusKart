@@ -125,60 +125,29 @@ class StoreProductsPage extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-      
-                                        Builder(
-                                          builder: (_) {
-                                            final sizes = (product['sizes'] != null && product['sizes'] is Map<String, dynamic>)
-                                              ? product['sizes'] as Map<String, dynamic>
-                                              : {};
-      
-                                            if (sizes.isNotEmpty) {
-                                              // Collect all numeric prices from size entries
-                                              final List<double> sizePrices = sizes.entries
-                                                .map((e) => (e.value['price'] as num?)?.toDouble() ?? 0)
-                                                .toList();
-                                              if (sizePrices.isNotEmpty) {
-                                                final double minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
-                                                final double maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
-      
-                                                // Display as a range only if min != max
-                                                if (minPrice != maxPrice) {
-                                                  return Text(
-                                                    '₱${minPrice.toStringAsFixed(2)} - ₱${maxPrice.toStringAsFixed(2)}',
-                                                    style: TextStyle(
-                                                      color: Colors.green[700],
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  );
-                                                } else {
-                                                  return Text(
-                                                    '₱${minPrice.toStringAsFixed(2)}',
-                                                    style: TextStyle(
-                                                      color: Colors.green[700],
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  );
-                                                }
-                                              }
-                                            }
-      
-                                            // fallback to regular price field if no sizes or empty
-                                            return Text(
-                                              product['price'] != null
-                                                ? '₱${(product['price'] as num).toStringAsFixed(2)}'
-                                                : '₱N/A',
-                                              style: TextStyle(
-                                                color: Colors.green[700],
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            );
-                                          },
-                                        ),
-      
-                                        StreamBuilder<QuerySnapshot>(
+                                    Builder(
+                                      builder: (_) {
+                                        final sizes = (product['sizes'] != null && product['sizes'] is Map<String, dynamic>)
+                                            ? product['sizes'] as Map<String, dynamic>
+                                            : {};
+
+                                        // figure out prices
+                                        double? minPrice;
+                                        double? maxPrice;
+                                        if (sizes.isNotEmpty) {
+                                          final List<double> sizePrices = sizes.entries
+                                              .map((e) => (e.value['price'] as num?)?.toDouble() ?? 0)
+                                              .toList();
+                                          if (sizePrices.isNotEmpty) {
+                                            minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
+                                            maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
+                                          }
+                                        }
+
+                                        final bool isRange = minPrice != null && maxPrice != null && minPrice != maxPrice;
+
+                                        // Widget that shows the review stars/avg
+                                        final reviewWidget = StreamBuilder<QuerySnapshot>(
                                           stream: FirebaseFirestore.instance
                                               .collection('products')
                                               .doc(docId)
@@ -187,21 +156,22 @@ class StoreProductsPage extends StatelessWidget {
                                           builder: (context, reviewSnapshot) {
                                             if (reviewSnapshot.connectionState == ConnectionState.waiting) {
                                               return const SizedBox(
-                                                  width: 30,
-                                                  height: 14,
-                                                  child: Center(
-                                                      child: SizedBox(
-                                                          width: 10,
-                                                          height: 10,
-                                                          child: CircularProgressIndicator(strokeWidth: 1))));
-                                            }
-                                            if (!reviewSnapshot.hasData || reviewSnapshot.data!.docs.isEmpty) {
-                                              return const Text(
-                                                'No reviews',
-                                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                                width: 30,
+                                                height: 14,
+                                                child: Center(
+                                                  child: SizedBox(
+                                                    width: 10,
+                                                    height: 10,
+                                                    child: CircularProgressIndicator(strokeWidth: 1),
+                                                  ),
+                                                ),
                                               );
                                             }
-      
+                                            if (!reviewSnapshot.hasData || reviewSnapshot.data!.docs.isEmpty) {
+                                              return const Text('No reviews',
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey));
+                                            }
+
                                             final reviews = reviewSnapshot.data!.docs;
                                             double total = 0;
                                             for (var r in reviews) {
@@ -209,21 +179,51 @@ class StoreProductsPage extends StatelessWidget {
                                               total += (data['rating'] ?? 0).toDouble();
                                             }
                                             final avg = total / reviews.length;
-      
+
                                             return Row(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 const Icon(Icons.star, size: 14, color: Colors.amber),
                                                 const SizedBox(width: 2),
-                                                Text(
-                                                  avg.toStringAsFixed(1),
-                                                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                                                ),
+                                                Text(avg.toStringAsFixed(1),
+                                                    style: const TextStyle(fontSize: 12, color: Colors.black87)),
                                               ],
                                             );
                                           },
-                                        ),
-                                      ],
+                                        );
+
+                                        // Row if single price, Column if price range
+                                        if (isRange) {
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '₱${minPrice.toStringAsFixed(2)} - ₱${maxPrice.toStringAsFixed(2)}',
+                                                style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              reviewWidget,
+                                            ],
+                                          );
+                                        } else {
+                                          final priceText = sizes.isNotEmpty
+                                              ? '₱${minPrice?.toStringAsFixed(2) ?? '0.00'}'
+                                              : (product['price'] != null
+                                                  ? '₱${(product['price'] as num).toStringAsFixed(2)}'
+                                                  : '₱N/A');
+
+                                          return Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(priceText,
+                                                  style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold)),
+                                              reviewWidget,
+                                            ],
+                                          );
+                                        }
+                                      },
                                     ),
+
                                     if (product['createdAt'] != null)
                                       Text(
                                         'Added: ${(product['createdAt'] as Timestamp).toDate().toString().split(' ')[0]}',

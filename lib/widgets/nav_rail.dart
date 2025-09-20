@@ -10,9 +10,13 @@ import 'package:kampus_kart/pages/store_homepage.dart';
 class MyNavRail extends StatefulWidget {
   final bool showLogin;
   final bool showSignUp;
+
+  final int initialIndex;
+
   const MyNavRail({
     this.showLogin = false,
     this.showSignUp = false,
+    this.initialIndex = 0,
     super.key,
   });
 
@@ -21,12 +25,16 @@ class MyNavRail extends StatefulWidget {
 }
 
 class _MyNavRailState extends State<MyNavRail> {
-  var selectedIndex = 0;
+  late int selectedIndex;
+
   bool? isSeller; // null = loading, true/false = result
+
+  bool viewAsUser = false;
 
   @override
   void initState() {
     super.initState();
+    selectedIndex = widget.initialIndex;
 
     if (widget.showLogin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -67,8 +75,8 @@ class _MyNavRailState extends State<MyNavRail> {
           .limit(1)
           .get();
 
-      setState(() => isSeller = storeSnap.docs.isNotEmpty);
-    } catch (e) {
+        setState(() => isSeller = storeSnap.docs.isNotEmpty);
+    } catch (_) {
       // if something goes wrong, fall back to normal user
       setState(() => isSeller = false);
     }
@@ -83,8 +91,9 @@ class _MyNavRailState extends State<MyNavRail> {
       );
     }
 
-    // ----- decide which destinations to show -----
-    final destinations = isSeller!
+    // decide which destinations to show 
+    final isCurrentlyUserView = (isSeller! && viewAsUser) || !isSeller!;
+    final destinations = !isCurrentlyUserView
         ? const [
             NavigationRailDestination(
               icon: Icon(Icons.store_outlined),
@@ -121,7 +130,7 @@ class _MyNavRailState extends State<MyNavRail> {
             NavigationRailDestination(
               icon: Icon(Icons.notifications_outlined),
               selectedIcon: Icon(Icons.notifications),
-              label: Text('Notifications'),
+              label: Text('History'),
             ),
             NavigationRailDestination(
               icon: Icon(Icons.person_outline),
@@ -131,8 +140,8 @@ class _MyNavRailState extends State<MyNavRail> {
           ];
 
     // map each index to a page
-    Widget page;
-    if (isSeller!) {
+    Widget? page;
+    if (!isCurrentlyUserView) {
       switch (selectedIndex) {
         case 0:
           page = StorePage(); // Store page
@@ -141,7 +150,17 @@ class _MyNavRailState extends State<MyNavRail> {
         case 2:
           page = const Placeholder(); // Chat page
         case 3:
-          page = const MePage();
+          page = MePage(
+            isSeller: isSeller!,
+            ownsStore: true,
+            viewAsUser: viewAsUser,
+            onViewToggle: (val) {
+              setState(() {
+                viewAsUser = val;
+                selectedIndex = 0;
+              });
+            },
+          );
         default:
           throw UnimplementedError('No page for $selectedIndex');
       }
@@ -154,7 +173,17 @@ class _MyNavRailState extends State<MyNavRail> {
         case 2:
           page = const Placeholder(); // Notifications page
         case 3:
-          page = MePage(); 
+          page = MePage(
+            isSeller: isSeller!,
+            ownsStore: true,
+            viewAsUser: viewAsUser,
+            onViewToggle: (val) {
+              setState(() {
+                viewAsUser = val;
+                selectedIndex = 0;
+              });
+            },
+          ); 
         default:
           throw UnimplementedError('No page for $selectedIndex');
       }
@@ -171,8 +200,7 @@ class _MyNavRailState extends State<MyNavRail> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-
-          // --------- MOBILE: bottom navigation ----------
+          // MOBILE: bottom navigation 
           if (constraints.maxWidth < 450) {
             return Column(
               children: [
@@ -197,16 +225,16 @@ class _MyNavRailState extends State<MyNavRail> {
             );
           }
 
-          // --------- DESKTOP: side navigation rail ----------
+          // DESKTOP: side navigation rail 
           return Row(
             children: [
               SafeArea(
                 child: NavigationRail(
-                  extended: constraints.maxWidth >= 600,
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (value) =>
-                      setState(() => selectedIndex = value),
+                      extended: constraints.maxWidth >= 600,
+                      destinations: destinations,
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) =>
+                          setState(() => selectedIndex = value),
                 ),
               ),
               Expanded(child: mainArea),

@@ -115,7 +115,10 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
 
     if (_selectedProductId == null) {
       // create new product
-      await products.add(data);
+      await products.add({
+        ...data,
+        'createdAt' : FieldValue.serverTimestamp(),
+      });
     } else {
       // update existing
       await products.doc(_selectedProductId).set(data, SetOptions(merge: true));
@@ -140,6 +143,53 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
     }
   }
 
+  Future<void> _deleteProduct(String productId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Product'),
+        content: const Text('Are you sure you want to delete this product?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await FirebaseFirestore.instance
+        .collection('products')
+        .doc(productId)
+        .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product deleted')),
+        );
+      }
+
+      if (_selectedProductId == productId) {
+        setState(() {
+          _selectedProductId = null;
+          _formKey.currentState!.reset();
+          _nameCtrl.clear();
+          _descCtrl.clear();
+          _imageUrlCtrl.clear();
+          _priceCtrl.clear();
+          _stockCtrl.clear();
+          _sizes.clear();
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_storeId == null) {
@@ -155,7 +205,7 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
           // Floating card for editing fields
           Card(
             elevation: 4,
-            margin: const EdgeInsets.all(12),
+            margin: const EdgeInsets.all(6),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -366,16 +416,15 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
                     final doc = products[i];
                     final data = doc.data() as Map<String, dynamic>;
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: ListTile(
                         leading: data['imageUrl'] != null &&
-                          (data['imageUrl'] as String).isNotEmpty
+                                (data['imageUrl'] as String).isNotEmpty
                           ? Image.network(
-                            data['imageUrl'],
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
+                              data['imageUrl'],
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
                             )
                           : const Icon(Icons.image_not_supported),
                         title: Text(data['name'] ?? 'Unnamed'),
@@ -396,7 +445,7 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
                               return Text(
                                 prices.isEmpty
                                   ? 'No sizes'
-                                  : '₱$minPrice - ₱$maxPrice • Total stock: $totalStock',
+                                  : '₱$minPrice  - ₱$maxPrice • Total stock: $totalStock',
                               );
                             } else {
                               return Text(
@@ -406,6 +455,10 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
                           },
                         ),
                         onTap: () => _loadProductData(data, doc.id),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteProduct(doc.id),
+                        ),
                       ),
                     );
                   },
