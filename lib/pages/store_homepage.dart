@@ -33,7 +33,7 @@ class _StorePageState extends State<StorePage> {
               NavigationDestination(
                 icon: Icon(Icons.shopping_bag_outlined),
                 selectedIcon: Icon(Icons.shopping_bag),
-                label: 'Products'
+                label: 'Edit Products'
               ),
             ],
           ),

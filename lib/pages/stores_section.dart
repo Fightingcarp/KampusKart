@@ -59,14 +59,8 @@ class StoresSection extends StatelessWidget {
 
                     // live average rating
                     _StoreAverageRating(storeId: storeDoc.id),
-
-                    if (store['isActive'] == false)
-                      const Text('Inactive', style: TextStyle(color: Colors.red)),
                   ],
                 ),
-                trailing: store['isActive'] == true
-                    ? null
-                    : const Icon(Icons.block, color: Colors.red),
                 onTap: () {
                   Navigator.push(
                     context,

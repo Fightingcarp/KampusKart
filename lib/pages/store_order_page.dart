@@ -1,0 +1,123 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+class StoreOrdersPage extends StatelessWidget {
+  const StoreOrdersPage({super.key});
+
+  Color _statusColor(String s) {
+    switch(s) {
+      case 'on hold': return Colors.orange;
+      case 'processing': return Colors.blue;
+      case 'delivering': return Colors.purple;
+      case 'completed': return Colors.green;
+      case 'cancelled': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sellerId = FirebaseAuth.instance.currentUser!.uid;
+    final orders = FirebaseFirestore.instance
+      .collection('orders')
+      .where('sellerId', isEqualTo: sellerId)
+      .orderBy('createdAt', descending: true);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Seller Orders')),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: orders.snapshots(),
+        builder: (c, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } 
+          if (!snap.hasData || snap.data!.docs.isEmpty) {
+            return const Center(child: Text('No orders yet'));
+          }
+
+          return ListView(
+            children: snap.data!.docs.map((doc) {
+              final d = doc.data() as Map<String, dynamic>;
+              final status = d['status'] ?? 'on hold';
+              final total = d['totalPrice'] ?? 0.0;
+              final buyerPhone = d['buyerPhone'] ?? '';
+              final delivery = d['delivery'] ?? '';
+              final items = (d['items'] as List).cast<Map<String, dynamic>>();
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ExpansionTile(
+                  title: Text('₱${total.toStringAsFixed(2)} - $buyerPhone'),
+                  subtitle: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          status,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        (d['createdAt'] as Timestamp)
+                          .toDate()
+                          .toLocal()
+                          .toString(),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Delivery: $delivery'),
+                          const SizedBox(height: 8),
+                          ...items.map((item) => Text(
+                            '${item['quantity']} x ${item['sizeName']} - ₱${item['unitPrice']}')),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Text('Change status: '),
+                              const SizedBox(width: 12),
+                              DropdownButton<String>(
+                                value: status,
+                                items: const [
+                                  'on hold',
+                                  'processing',
+                                  'delivering',
+                                  'completed',
+                                  'cancelled',
+                                ].map((s) =>
+                                  DropdownMenuItem(value: s, child: Text(s)))
+                                .toList(),
+                                onChanged: (val) async {
+                                  if (val == null) return;
+                                  await FirebaseFirestore.instance
+                                    .collection('orders')
+                                    .doc(doc.id)
+                                    .update({'status': val});
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
+}

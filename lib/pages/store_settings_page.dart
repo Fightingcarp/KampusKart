@@ -180,7 +180,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                       const SizedBox(height: 16),
 
                       TextFormField(
-                        controller: _logoUrlCtrl,
+                        controller: _bannerUrlCtrl,
                         decoration: const InputDecoration(
                           labelText: 'Banner Image URL',
                           hintText: 'Paste a direct link from your image host',

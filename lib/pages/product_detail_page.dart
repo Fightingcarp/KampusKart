@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:kampus_kart/pages/checkout_page.dart';
+
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
   final String productId;
@@ -21,6 +23,44 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   String? _userReviewText;
   String? _selectedSizekey;
   bool _submitting = false;
+  bool _hasPurchased = false;
+  
+  DocumentSnapshot? _existingReviewDoc;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPurchaseAndReview();
+  }
+
+  Future<void> _checkPurchaseAndReview() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final orders = await FirebaseFirestore.instance
+      .collection('orders')
+      .where('buyerId', isEqualTo: user.uid)
+      .where('productId', isEqualTo: widget.productId)
+      .get();
+    if (orders.docs.isNotEmpty) {
+      _hasPurchased = true;
+    }
+
+    final reviewQuery = await FirebaseFirestore.instance
+      .collection('products')
+      .doc(widget.productId)
+      .collection('reviews')
+      .where('userId', isEqualTo: user.uid)
+      .limit(1)
+      .get();
+    if (reviewQuery.docs.isNotEmpty) {
+      _existingReviewDoc = reviewQuery.docs.first;
+      final data = _existingReviewDoc!.data() as Map<String, dynamic>;
+      _userRating = (data['rating'] as num?)?.toDouble();
+      _userReviewText = data['reviewText'] ?? '';
+    }
+    setState(() {});
+  }
 
   Future<String?> _fetchStoreName(String storeId) async {
     final doc = await FirebaseFirestore.instance.collection('stores').doc(storeId).get();
@@ -39,10 +79,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Future<void> _submitReview() async {
     if (_userRating == null || (_userReviewText?.trim().isEmpty ?? true)) return;
+    if (!_hasPurchased) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can only review after purchasing this product'))
+      );
+      return;
+    }
     setState(() => _submitting = true);
-    final user = FirebaseAuth.instance.currentUser;
-
-    
+    final user = FirebaseAuth.instance.currentUser;                      
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You must be logged in to review')),
@@ -51,25 +95,217 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return;
     }
 
-    await FirebaseFirestore.instance
-        .collection('products')
-        .doc(widget.productId)
-        .collection('reviews')
-        .add({
-      'rating': _userRating,
-      'reviewText': _userReviewText,
-      'userId': user.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    setState(() {
-      _userRating = null;
-      _userReviewText = null;
-      _submitting = false;
-    });
+    final reviewsRef = FirebaseFirestore.instance
+      .collection('products')
+      .doc(widget.productId)
+      .collection('reviews');
+
+    if (_existingReviewDoc != null) {
+      await reviewsRef.doc(_existingReviewDoc!.id).set({
+        'rating': _userRating,
+        'reviewText': _userReviewText,
+        'userId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      final doc = await reviewsRef.add({
+        'rating': _userRating,
+        'reviewText': _userReviewText,
+        'userId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _existingReviewDoc = await doc.get();
+    }
+
+    setState(() => _submitting = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Review submitted!')),
     );
   }
+
+  Future<void> _deleteReview() async {
+    if (_existingReviewDoc != null) {
+      await _existingReviewDoc!.reference.delete();
+      setState(() {
+        _existingReviewDoc = null;
+        _userRating = null;
+        _userReviewText = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your review has been deleted')),
+      );
+    }
+  }
+
+  Future<void> _showBuyDialog(
+    {required String? selectedSize,
+     required double? price,
+     required int stock,
+     required bool requiresSize,
+     required Map<String, dynamic> sizes, 
+     }) async {
+      if (requiresSize && selectedSize == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pleae select a size first')),
+        );
+        return;
+      }
+
+      int tempQty = 1;
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true, // allows full height when needed
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setStateDialog) {
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Wrap(
+                  children: [
+                    SafeArea(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 5,
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[400],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'Confirm Details Before Checkout',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const Divider(height: 30),
+                          if (requiresSize)
+                            Text('Size: $selectedSize')
+                          else
+                            const Text('Size: -'),
+                          if (price != null)
+                            Text('Price Per Product: ₱${price.toStringAsFixed(2)}'),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Text('Quantity:'),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.remove),
+                                onPressed: tempQty > 1
+                                    ? () => setStateDialog(() => tempQty--)
+                                    : null,
+                              ),
+                              Text('$tempQty'),
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed: tempQty < stock
+                                    ? () => setStateDialog(() => tempQty++)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final storeId = widget.product['storeId'] as String?;
+                                  if (storeId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Store information missing')),
+                                    );
+                                    return;
+                                  }
+
+                                  final currentUser = FirebaseAuth.instance.currentUser;
+                                  if (currentUser == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('You must be logged in to buy')),
+                                    );
+                                    return;
+                                  }
+
+                                  final storeSnap = await FirebaseFirestore.instance
+                                    .collection('stores')
+                                    .doc(storeId)
+                                    .get();
+
+                                  final sellerId = (storeSnap.exists)
+                                    ? (storeSnap.data()?['ownerId'] as String?)
+                                    : null;
+                                  
+                                  if (sellerId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Store owner not found')),
+                                    );
+                                    return;
+                                  }
+
+                                  if (sellerId == currentUser.uid) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("You can't buy from your own store.")),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.pop(ctx);
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CheckoutPage(
+                                        productId: widget.productId,
+                                        sizeKey: _selectedSizekey ?? '',
+                                        sizeName: selectedSize != null && sizes.containsKey(_selectedSizekey)
+                                          ? (sizes[_selectedSizekey!]['name'] ?? _selectedSizekey)
+                                          : '',
+                                        quantity: tempQty,
+                                        unitPrice: price ?? 0.0,
+                                        storeId: storeId,
+                                        sellerId: sellerId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Cash on Delivery'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Online payment placeholder
+                          Center(
+                            child: TextButton(
+                              onPressed: null,
+                              child: const Text('Online Payment'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +319,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ---------------- Product image ----------------
+            // Product image
             product['imageUrl'] != null
                 ? Image.network(product['imageUrl'], height: 220, fit: BoxFit.cover)
                 : Container(
@@ -165,11 +401,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             const SizedBox(height: 12),
                           ],
                           // live stock count
-                          Text(
-                            'Stock left: $stock',
-                            style: const TextStyle(
-                                fontSize: 16, color: Colors.redAccent),
-                          ),
+                          if (sizes.isNotEmpty && _selectedSizekey == null) 
+                            const SizedBox.shrink()
+                          else
+                            Text(
+                              'Stock left: $stock',
+                              style: const TextStyle(
+                                  fontSize: 16, color: Colors.redAccent),
+                            ),
                           const SizedBox(height: 16),
                           Text(product['description'] ?? '',
                               style: const TextStyle(fontSize: 16)),
@@ -303,55 +542,71 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             },
                           ),
                           const Divider(height: 32),
-                          const Text("Leave a Review",
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text("Rating:"),
-                              const SizedBox(width: 12),
-                              for (int i = 1; i <= 5; i++)
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.star,
-                                    color: (_userRating ?? 0) >= i
-                                        ? Colors.amber
-                                        : Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _userRating = i.toDouble());
-                                  },
+                          if (_hasPurchased)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Your Review",
+                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Text("Rating: "),
+                                    const SizedBox(width: 12),
+                                    for (int i = 1; i <= 5; i++)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.star,
+                                          color: (_userRating ?? 0) >= i
+                                            ? Colors.amber
+                                            : Colors.grey
+                                        ),
+                                        onPressed: () {
+                                          setState(() => _userRating = i.toDouble());
+                                        },
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                          TextField(
-                            minLines: 1,
-                            maxLines: 3,
-                            decoration: const InputDecoration(
-                              hintText: "Write your review...",
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (val) => _userReviewText = val,
-                            controller:
-                                TextEditingController(text: _userReviewText),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _submitting
-                                ? null
-                                : () async {
-                                    if (_userRating != null &&
-                                        _userReviewText != null &&
-                                        _userReviewText!.trim().isNotEmpty) {
-                                      await _submitReview();
-                                      setState(() {});
-                                    }
-                                  },
-                            child: _submitting
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white)
-                                : const Text("Submit Review"),
-                          ),
+                                TextField(
+                                  minLines: 1,
+                                  maxLength: 3,
+                                  decoration: const InputDecoration(
+                                    hintText: "Write your review...",
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (val) => _userReviewText = val,
+                                  controller:
+                                    TextEditingController(text: _userReviewText),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: _submitting
+                                        ? null
+                                        : () async {
+                                          if (_userRating != null &&
+                                              _userReviewText != null &&
+                                              _userReviewText!.trim().isNotEmpty) {
+                                                await _submitReview();
+                                              }
+                                        },
+                                      child: _submitting
+                                        ? const CircularProgressIndicator(color: Colors.white)
+                                        : Text(_existingReviewDoc != null ? "Update Review" : "Submit Review"),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    if (_existingReviewDoc != null)
+                                      OutlinedButton(
+                                        onPressed: _deleteReview,
+                                        child: const Text("Delete Review"),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          else
+                            const Text("Buy first to leave a review."),
                           const SizedBox(height: 20),
 
                           // Buy / Add to Cart buttons react to live stock
@@ -359,15 +614,49 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed:
-                                      stock <= 0 ? null : () {/* buy logic */},
+                                  onPressed: stock <= 0 
+                                    ? null 
+                                    : () {
+                                      final bool hasSizes = sizes.isNotEmpty;
+
+                                      final String? sizeName = _selectedSizekey != null && sizes.containsKey(_selectedSizekey)
+                                        ? (sizes[_selectedSizekey!]['name'] ?? _selectedSizekey)
+                                        : null;
+
+                                      if (hasSizes && sizeName == null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Please select a size first')),
+                                        );
+                                        return;
+                                      }
+
+                                      if (price == null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Price information unavailable '))
+                                        );
+                                        return;
+                                      }
+
+                                      _showBuyDialog(
+                                        selectedSize: sizeName,
+                                        price: price,
+                                        stock: stock,
+                                        requiresSize: hasSizes,
+                                        sizes: sizes,
+                                      );
+                                    },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green[700],
                                     disabledBackgroundColor: Colors.green[200],
                                     foregroundColor: Colors.white,
                                   ),
                                   child: Text(
-                                      stock <= 0 ? 'Out of Stock' : 'Buy'),
+                                    sizes.isNotEmpty && _selectedSizekey == null
+                                      ? 'Select Size'
+                                      : stock <= 0
+                                        ? 'Out of Stock'
+                                        : 'Buy',
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),

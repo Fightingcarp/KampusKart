@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kampus_kart/pages/login_page.dart';
+import 'package:kampus_kart/pages/customer_order_page.dart';
 
 class MePage extends StatefulWidget {
   final bool isSeller;
@@ -133,6 +134,20 @@ class _MePageState extends State<MePage> {
                 ),
               ),
 
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              child: ListTile(
+                leading: const Icon(Icons.receipt_long),
+                title: const Text('My orders'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => CustomerOrdersPage()),
+                  );
+                },
+              ),
+            ),
             // Profile Picture
             CircleAvatar(
               radius: 60,

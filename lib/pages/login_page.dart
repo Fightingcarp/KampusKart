@@ -18,7 +18,7 @@ void showTopMessage(BuildContext context, String message, {Color? color, IconDat
     borderRadius: BorderRadius.circular(10),
     margin: const EdgeInsets.all(8),
     animationDuration: const Duration(milliseconds: 300),
-    icon: Icon(icon ?? Icons.dangerous_outlined, color: Colors.white),
+    icon: Icon(icon ?? Icons.check_circle_outline, color: Colors.white),
   ).show(context);
 }
 
