@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:kampus_kart/pages/product_detail_page.dart';
+import 'package:kampus_kart/pages/user/product_detail_page.dart';
 
 class StoreProductsPage extends StatelessWidget {
   final String storeId;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:kampus_kart/pages/product_settings_page.dart';
-import 'package:kampus_kart/pages/store_settings_page.dart';
+import 'package:kampus_kart/pages/seller/product_settings_page.dart';
+import 'package:kampus_kart/pages/seller/store_settings_page.dart';
 
 class StorePage extends StatefulWidget {
   @override

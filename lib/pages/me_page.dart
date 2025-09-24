@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kampus_kart/pages/login_page.dart';
-import 'package:kampus_kart/pages/customer_order_page.dart';
+import 'package:kampus_kart/pages/user/customer_order_page.dart';
 
 class MePage extends StatefulWidget {
   final bool isSeller;

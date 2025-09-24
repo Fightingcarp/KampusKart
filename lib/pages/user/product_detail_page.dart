@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:kampus_kart/pages/checkout_page.dart';
+import 'package:kampus_kart/pages/user/checkout_page.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -306,6 +306,55 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         },
       );
     }
+
+  Future<void> _addToCart({
+    required double price,
+    required int stock,
+    required Map<String, dynamic> sizes,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to add to cart')),
+      );
+      return;
+    }
+
+    final bool hasSizes = sizes.isNotEmpty;
+    if (hasSizes && _selectedSizekey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a size first')),
+      );
+      return;
+    }
+
+    final sizeName = (_selectedSizekey != null && sizes.containsKey(_selectedSizekey))
+      ? (sizes[_selectedSizekey!]['name'] ?? _selectedSizekey)
+      : null;
+
+    final cartDocId = _selectedSizekey != null
+      ? '${widget.productId}_${_selectedSizekey!}'
+      : widget.productId;
+
+    await FirebaseFirestore.instance
+      .collection('carts')
+      .doc(user.uid)
+      .collection('items')
+      .doc(cartDocId)
+      .set({
+        'name': widget.product['name'],
+        'productId': widget.productId,
+        'quantity': 1,
+        'sizeKey': _selectedSizekey,
+        'sizeName': sizeName,
+        'unitPrice': price,
+        'addedAt': FieldValue.serverTimestamp()
+      }, SetOptions(merge: true));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Added to cart!')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -664,7 +713,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 child: OutlinedButton(
                                   onPressed: stock <= 0
                                       ? null
-                                      : () {/* add to cart logic */},
+                                      : () {
+                                        if (price == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Price information unavailable')),
+                                          );
+                                          return;
+                                        }
+                                        _addToCart(
+                                          price: price,
+                                          stock: stock,
+                                          sizes: sizes,
+                                        );
+                                      },
                                   child: const Text('Add to Cart'),
                                 ),
                               ),

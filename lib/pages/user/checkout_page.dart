@@ -166,7 +166,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               // Prefilled phone number
               ListTile(
                 leading: const Icon(Icons.phone),
-                title: Text(_phone ?? 'Loading...'),
+                title: Text(
+                    maxLines: 1,
+                    _phone ?? 'Loading...'
+                  ),
                 subtitle: const Text('Your phone number'),
                 trailing: TextButton(
                   onPressed: () {

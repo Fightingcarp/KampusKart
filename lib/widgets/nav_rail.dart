@@ -3,10 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:kampus_kart/pages/login_page.dart';
-import 'package:kampus_kart/pages/home_page.dart';
+import 'package:kampus_kart/pages/user/home_page.dart';
 import 'package:kampus_kart/pages/me_page.dart';
-import 'package:kampus_kart/pages/store_homepage.dart';
-import 'package:kampus_kart/pages/store_order_page.dart';
+import 'package:kampus_kart/pages/seller/store_homepage.dart';
+import 'package:kampus_kart/pages/seller/store_order_page.dart';
 
 class MyNavRail extends StatefulWidget {
   final bool showLogin;

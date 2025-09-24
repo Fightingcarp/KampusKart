@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'products_section.dart';
 import 'stores_section.dart';
 
+import 'package:kampus_kart/pages/user/cart_page.dart';
+
 class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
@@ -45,10 +47,11 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Cart page coming soon!")),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartPage()),
               );
-            },
+            }
           ),
         ],
         // nav bar for Products and Stores 
