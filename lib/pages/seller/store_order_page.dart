@@ -25,7 +25,7 @@ class StoreOrdersPage extends StatelessWidget {
       .orderBy('createdAt', descending: true);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Seller Orders')),
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       body: StreamBuilder<QuerySnapshot>(
         stream: orders.snapshots(),
         builder: (c, snap) {
@@ -126,16 +126,32 @@ class StoreOrdersPage extends StatelessWidget {
                                   'processing',
                                   'delivering',
                                   'completed',
-                                  'cancelled',
                                 ].map((s) =>
                                   DropdownMenuItem(value: s, child: Text(s)))
                                 .toList(),
                                 onChanged: (val) async {
                                   if (val == null) return;
-                                  await FirebaseFirestore.instance
-                                    .collection('orders')
-                                    .doc(doc.id)
-                                    .update({'status': val});
+                                  
+                                  final orderRef = FirebaseFirestore.instance.collection('orders').doc(doc.id);
+                                  final batch = FirebaseFirestore.instance.batch();
+
+                                  if (val == 'completed') {
+                                    final orderSnap = await orderRef.get();
+                                    if (!orderSnap.exists) return;
+
+                                    final orderData = orderSnap.data()!;
+                                    orderData['status'] = 'completed';
+                                    orderData['completedAt'] = FieldValue.serverTimestamp();
+
+                                    final historyRef = FirebaseFirestore.instance.collection('history').doc(doc.id);
+                                    batch.set(historyRef, orderData);
+
+                                    batch.delete(orderRef);
+
+                                    await batch.commit();
+                                  } else {
+                                    await orderRef.update({'status': val});
+                                  }
                                 },
                               ),
                             ],

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kampus_kart/pages/login_page.dart';
-import 'package:kampus_kart/pages/user/customer_order_page.dart';
+import 'package:kampus_kart/pages/user/customer_order_homepage.dart';
 
 class MePage extends StatefulWidget {
   final bool isSeller;
@@ -143,7 +143,7 @@ class _MePageState extends State<MePage> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => CustomerOrdersPage()),
+                    MaterialPageRoute(builder: (_) => CustomerOrderHomePage()),
                   );
                 },
               ),

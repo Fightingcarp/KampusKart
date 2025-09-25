@@ -2,57 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class CustomerOrdersPage extends StatelessWidget {
-  const CustomerOrdersPage({super.key});
-
-  Future<void> _moveOrderToHistory(DocumentSnapshot orderDoc) async {
-    final data = orderDoc.data() as Map<String, dynamic>;
-
-    final batch = FirebaseFirestore.instance.batch();
-    final historyRef = FirebaseFirestore.instance.collection('history').doc(orderDoc.id);
-    final ordersRef = orderDoc.reference;
-
-    batch.set(historyRef, {
-      ...data,
-      'movedAt': FieldValue.serverTimestamp(),
-    });
-    batch.delete(ordersRef);
-
-    await batch.commit();
-  }
+class CustomerHistoryPage extends StatelessWidget {
+  const CustomerHistoryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text('Please log in to view your orders.')),
+        body: Center(child: Text('Please log in to view your order history.')),
       );
     }
 
-    final ordersQuery = FirebaseFirestore.instance
-        .collection('orders')
+    final historyQuery = FirebaseFirestore.instance
+        .collection('history')
         .where('buyerId', isEqualTo: user.uid)
         .orderBy('createdAt', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
-      stream: ordersQuery.snapshots(),
+      stream: historyQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No orders yet.'));
+          return const Center(child: Text('No order history yet.'));
         }
 
-        final orders = snapshot.data!.docs;
+        final historyOrders = snapshot.data!.docs;
 
         return ListView.builder(
-          itemCount: orders.length,
+          itemCount: historyOrders.length,
           itemBuilder: (context, i) {
-            final orderDoc = orders[i];
-            final data = orders[i].data() as Map<String, dynamic>;
-            final orderId = orders[i].id;
+            final orderDoc = historyOrders[i];
+            final data = orderDoc.data() as Map<String, dynamic>;
             final status = data['status'] as String? ?? 'unknown';
             final storeName = data['storeName'] ?? 'Unknown store';
             final total = (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
@@ -119,58 +102,8 @@ class CustomerOrdersPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         ListTile(
                           title: Text('Total: ₱${total.toStringAsFixed(2)}'),
-                          subtitle: const Text('Tap to see order details here if needed'),
+                          subtitle: const Text('Order details'),
                         ),
-                        if (status == 'on hold')
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Center(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                ),
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: const Text('Cancel order?'),
-                                      content: const Text(
-                                        'Are you sure you want to cancel this order?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx, false),
-                                          child: const Text('No'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () => Navigator.pop(ctx, true),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                          child: const Text('Yes, cancel'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await FirebaseFirestore.instance
-                                        .collection('orders')
-                                        .doc(orderId)
-                                        .update({'status': 'cancelled'});
-
-                                    await _moveOrderToHistory(orderDoc);
-                                    
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Order cancelled.')),
-                                    );
-                                  }
-                                },
-                                child: const Text('Cancel Order'),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),

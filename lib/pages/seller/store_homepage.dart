@@ -15,7 +15,7 @@ class _StorePageState extends State<StorePage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       appBar: AppBar(
-        title: Text('Store Settings'),
+        title: Text('Store Settings', style: TextStyle(fontWeight: FontWeight.bold)),
         // nav bar for Product & Store Settings
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(kBottomNavigationBarHeight),

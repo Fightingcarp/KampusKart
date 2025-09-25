@@ -207,7 +207,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ),
                             subtitle: Text(
                               '₱${item.unitPrice.toStringAsFixed(2)} each\n'
-                              'Qty: ${item.quantity}'
+                              'Quantity: ${item.quantity}'
                               '${(item.sizeName?.isNotEmpty ?? false)
                                   ? ' | Size: ${item.sizeName}'
                                   : ''}',
