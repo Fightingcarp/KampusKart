@@ -37,13 +37,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final orders = await FirebaseFirestore.instance
+    final ordersSnap = await FirebaseFirestore.instance
       .collection('orders')
       .where('buyerId', isEqualTo: user.uid)
-      .where('productId', isEqualTo: widget.productId)
       .get();
-    if (orders.docs.isNotEmpty) {
-      _hasPurchased = true;
+    
+    for (final doc in ordersSnap.docs) {
+      final data = doc.data();
+      final items = (data['items'] ?? []) as List;
+      if (items.any((item) =>
+        item is Map && item['productId'] == widget.productId)) {
+          _hasPurchased = true;
+          break;
+        }
     }
 
     final reviewQuery = await FirebaseFirestore.instance
@@ -264,24 +270,31 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                     return;
                                   }
 
+                                  final sizeName = selectedSize != null && sizes.containsKey(_selectedSizekey)
+                                    ? (sizes[_selectedSizekey]['name'] ?? _selectedSizekey)
+                                    : "";
                                   Navigator.pop(ctx);
 
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => CheckoutPage(
-                                        productId: widget.productId,
-                                        sizeKey: _selectedSizekey ?? '',
-                                        sizeName: selectedSize != null && sizes.containsKey(_selectedSizekey)
-                                          ? (sizes[_selectedSizekey!]['name'] ?? _selectedSizekey)
-                                          : '',
-                                        quantity: tempQty,
-                                        unitPrice: price ?? 0.0,
-                                        storeId: storeId,
-                                        sellerId: sellerId,
+                                        items: [
+                                          CartItem(
+                                            productId: widget.productId,
+                                            sizeKey: _selectedSizekey ?? "",
+                                            sizeName: sizeName,
+                                            quantity: tempQty,
+                                            unitPrice: price ?? 0,
+                                            storeId: storeId,
+                                            sellerId: sellerId,                                            
+                                          ),
+                                        ],
+                                        isSingle: true,
                                       ),
                                     ),
                                   );
+                                  print(widget.productId);
                                 },
                                 child: const Text('Cash on Delivery'),
                               ),
@@ -328,6 +341,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return;
     }
 
+    final storeId = widget.product['storeId'] as String?;
+
+    final storeSnap = await FirebaseFirestore.instance
+      .collection('stores')
+      .doc(storeId)
+      .get();
+
+    final sellerId = (storeSnap.exists)
+      ? (storeSnap.data()?['ownerId'] as String?)
+      : null;
+
     final sizeName = (_selectedSizekey != null && sizes.containsKey(_selectedSizekey))
       ? (sizes[_selectedSizekey!]['name'] ?? _selectedSizekey)
       : null;
@@ -345,6 +369,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         'name': widget.product['name'],
         'productId': widget.productId,
         'quantity': 1,
+        'storeId': storeId,
+        'sellerId': sellerId,
         'sizeKey': _selectedSizekey,
         'sizeName': sizeName,
         'unitPrice': price,
@@ -422,7 +448,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           Text(
                             price != null
                               ? '₱${price.toStringAsFixed(2)}'
-                              : '₱N/A',
+                              : '₱',
                             style: TextStyle(
                               fontSize: 22,
                               color: Colors.green[700],

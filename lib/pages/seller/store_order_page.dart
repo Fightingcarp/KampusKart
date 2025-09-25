@@ -80,8 +80,40 @@ class StoreOrdersPage extends StatelessWidget {
                         children: [
                           Text('Delivery: $delivery'),
                           const SizedBox(height: 8),
-                          ...items.map((item) => Text(
-                            '${item['quantity']} x ${item['sizeName']} - ₱${item['unitPrice']}')),
+                          ...items.map((item) {
+                            final productId = item['productId'] as String;
+
+                            return FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('products')
+                                  .doc(productId)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  // while loading product name, show placeholder
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 4),
+                                    child: Text('Loading product...'),
+                                  );
+                                }
+
+                                String productName = 'Unknown product';
+                                if (snapshot.hasData && snapshot.data!.exists) {
+                                  final prodData = snapshot.data!.data() as Map<String, dynamic>;
+                                  productName = prodData['name'] ?? productName;
+                                }
+
+                                return Text(
+                                  '${item['quantity']}x '
+                                  '$productName'
+                                  '${item['sizeName'] != null && item['sizeName']!.toString().isNotEmpty
+                                      ? ' (${item['sizeName']})'
+                                      : ''} - '
+                                  '₱${item['unitPrice']}',
+                                );
+                              },
+                            );
+                          }),
                           const SizedBox(height: 12),
                           Row(
                             children: [

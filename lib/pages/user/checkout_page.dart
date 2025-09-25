@@ -4,24 +4,34 @@ import 'package:flutter/material.dart';
 
 import 'package:kampus_kart/pages/me_page.dart';
 
-class CheckoutPage extends StatefulWidget {
+class CartItem {
   final String productId;
   final String? sizeKey;
-  final String? sizeName;    // for display
+  final String? sizeName;
   final int quantity;
   final double unitPrice;
   final String storeId;
-  final String sellerId;    // ownerId of the store
+  final String sellerId;
 
-  const CheckoutPage({
-    super.key,
+  CartItem({
     required this.productId,
-    required this.sizeKey,
-    required this.sizeName,
+    this.sizeKey,
+    this.sizeName,
     required this.quantity,
     required this.unitPrice,
     required this.storeId,
     required this.sellerId,
+  });
+}
+
+class CheckoutPage extends StatefulWidget {
+  final List<CartItem> items;
+  final bool? isSingle;
+
+  const CheckoutPage({
+    super.key,
+    required this.items,
+    this.isSingle,
   });
 
   @override
@@ -29,7 +39,7 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  String? _phone;                // fetched from users collection
+  String? _phone;
   final _locationController = TextEditingController();
   bool _submitting = false;
 
@@ -65,64 +75,73 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     setState(() => _submitting = true);
 
-    final total = widget.unitPrice * widget.quantity;
-    final productRef =
-        FirebaseFirestore.instance.collection('products').doc(widget.productId);
-    final storeRef =
-        FirebaseFirestore.instance.collection('stores').doc(widget.storeId);
+    final total = widget.items.fold<double>(
+      0,
+      (sum, i) => sum + (i.unitPrice * i.quantity),
+    );
     final ordersRef = FirebaseFirestore.instance.collection('orders').doc();
+
+    final cartItemSnap = await FirebaseFirestore.instance
+      .collection('carts')
+      .doc(user.uid)
+      .collection('items')
+      .get();
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(productRef);
-        if (!snapshot.exists) {
-          throw Exception('Product not found');
-        }
+        final productSnapshots = <String, DocumentSnapshot>{};
+        String? storeName;
 
-        final storeSnap = await transaction.get(storeRef);
-        if (!storeSnap.exists) {
-          throw Exception('Store not found');
-        }
-        final storeName = (storeSnap.data() as Map<String, dynamic>)['name'];
+        for (final item in widget.items) {
+          final productRef = FirebaseFirestore.instance.collection('products').doc(item.productId);
+          productSnapshots[item.productId] = await transaction.get(productRef);
 
-        final data = snapshot.data() as Map<String, dynamic>;
-
-        if (widget.sizeKey == null || widget.sizeKey!.isEmpty) {
-          final current = (data['stock'] ?? 0) as int;
-          if (current < widget.quantity) {
-            throw Exception('Not enough stock');
+          if (storeName == null) {
+            final storeRef = FirebaseFirestore.instance.collection('stores').doc(item.storeId);
+            final storeSnap = await transaction.get(storeRef);
+            storeName = storeSnap.data()?['name'] as String?;
           }
-          transaction.update(productRef, {'stock': current - widget.quantity});
-        } else {
-          final sizePath = 'sizes.${widget.sizeKey}.stock';
-          final current =
-              ((data['sizes'] ?? const {})[widget.sizeKey]['stock'] ?? 0) as int;
-          if (current < widget.quantity) {
-            throw Exception('Not enough stock');
-          }
-          transaction.update(productRef, {sizePath: current - widget.quantity});
         }
 
+        for (final item in widget.items) {
+          final productRef = FirebaseFirestore.instance.collection('products').doc(item.productId);
+          final data = productSnapshots[item.productId]!.data() as Map<String, dynamic>;
+
+          if (item.sizeKey == null || item.sizeKey!.isEmpty) {
+            final current = (data['stock'] ?? 0) as int;
+            if (current < item.quantity) throw Exception('Not enough stock');
+            transaction.update(productRef, {'stock': current - item.quantity});
+          } else {
+            final sizePath = 'sizes.${item.sizeKey}.stock';
+            final current = ((data['sizes'] ?? const {})[item.sizeKey]['stock'] ?? 0) as int;
+            if (current < item.quantity) throw Exception('Not enough stock');
+            transaction.update(productRef, {sizePath: current - item.quantity});
+          }
+        }
+        
         transaction.set(ordersRef, {
           'buyerId': user.uid,
           'buyerPhone': _phone,
           'deliveryLocation': _locationController.text.trim(),
-          'storeId': widget.storeId,
+          'storeId': widget.items.first.storeId,
           'storeName': storeName,
-          'sellerId': widget.sellerId,
-          'items': [
-            {
-              'productId': widget.productId,
-              'sizeKey': widget.sizeKey,
-              'sizeName': widget.sizeName,
-              'quantity': widget.quantity,
-              'unitPrice': widget.unitPrice,
-            },
-          ],
-          'totalPrice': total,
+          'sellerId': widget.items.first.sellerId,
+          'items': widget.items
+            .map((i) => {
+              'productId': i.productId,
+              'sizeKey': i.sizeKey,
+              'sizeName': i.sizeName,
+              'quantity': i.quantity,
+              'unitPrice': i.unitPrice,
+            }).toList(),
           'status': 'on hold',
+          'totalPrice': total,
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        for (final doc in cartItemSnap.docs) {
+          transaction.delete(doc.reference);
+        }
       });
 
       if (!mounted) return;
@@ -135,12 +154,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-}
+  }
 
 
   @override
   Widget build(BuildContext context) {
-    final total = widget.unitPrice * widget.quantity;
+    final total = widget.items.fold<double>(
+      0,
+      (sum, i) => sum + (i.unitPrice * i.quantity),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
@@ -150,37 +172,77 @@ class _CheckoutPageState extends State<CheckoutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Product summary card
-              Card(
-                margin: const EdgeInsets.only(bottom: 20),
-                child: ListTile(
-                  title: Text('Quantity: ${widget.quantity}${widget.sizeName != null ? ' |  Size: ${widget.sizeName}' : ''}'),
-                  subtitle: Text('₱${widget.unitPrice.toStringAsFixed(2)} each'),
-                  trailing: Text(
-                    '₱${total.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: widget.items.length,
+                  itemBuilder: (context, index) {
+                    final item = widget.items[index];
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('products')
+                          .doc(item.productId)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final data = snapshot.data!.data() as Map<String, dynamic>;
+                        final productName = data['name'] ?? 'Unnamed product';
+                        final imageUrl = data['imageUrl'];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: imageUrl != null
+                                ? Image.network(
+                                    imageUrl,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(Icons.image_not_supported),
+                            title: Text(
+                              productName,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              '₱${item.unitPrice.toStringAsFixed(2)} each\n'
+                              'Qty: ${item.quantity}'
+                              '${(item.sizeName?.isNotEmpty ?? false)
+                                  ? ' | Size: ${item.sizeName}'
+                                  : ''}',
+                            ),
+                            trailing: Text(
+                              '₱${(item.unitPrice * item.quantity).toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
 
-              // Prefilled phone number
               ListTile(
                 leading: const Icon(Icons.phone),
                 title: Text(
-                    maxLines: 1,
-                    _phone ?? 'Loading...'
-                  ),
+                  _phone ?? 'Loading...',
+                  maxLines: 1,
+                ),
                 subtitle: const Text('Your phone number'),
                 trailing: TextButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => MePage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => MePage()),
+                    );
                   },
                   child: const Text('Edit in Settings'),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Delivery location field
               TextField(
                 controller: _locationController,
                 decoration: const InputDecoration(
@@ -190,9 +252,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 minLines: 2,
                 maxLines: 4,
               ),
-              const Spacer(),
+              const SizedBox(height: 20),
 
-              // Place Order button
+              Text(
+                'Total: ₱${total.toStringAsFixed(2)}',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
               ElevatedButton(
                 onPressed: _submitting ? null : _placeOrder,
                 style: ElevatedButton.styleFrom(

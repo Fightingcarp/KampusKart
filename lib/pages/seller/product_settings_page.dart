@@ -114,7 +114,7 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
                         return Text(
                           prices.isEmpty
                               ? 'No sizes'
-                              : '₱$minPrice  - ₱$maxPrice • Total stock: $totalStock',
+                              : '₱$minPrice  - ₱$maxPrice • stock: $totalStock',
                         );
                       } else {
                         return Text(

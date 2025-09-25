@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kampus_kart/pages/user/checkout_page.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -143,7 +144,28 @@ class CartPage extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium),
                           ElevatedButton(
                             onPressed: () {
-                              // will navigate to the checkout page
+                              final cartItems = cartDocs.map((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                return CartItem(
+                                  productId: data['productId'] as String,
+                                  sizeKey: data['sizeKey'] as String?,
+                                  sizeName: data['sizeName'] as String?,
+                                  quantity: (data['quantity'] ?? 0) as int,
+                                  unitPrice: (data['unitPrice'] ?? 0).toDouble(),
+                                  storeId: data['storeId'] as String,
+                                  sellerId: data['sellerId'] as String,
+                                );
+                              }).toList();
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CheckoutPage(
+                                    items: cartItems,
+                                    isSingle: false,
+                                  ),
+                                ),
+                              );
                             },
                             child: const Text('Proceed to Checkout'),
                           )
