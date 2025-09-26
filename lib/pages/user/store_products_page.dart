@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kampus_kart/pages/user/product_detail_page.dart';
+import 'package:kampus_kart/widgets/nav_rail.dart';
 
 class StoreProductsPage extends StatelessWidget {
   final String storeId;
@@ -25,27 +27,108 @@ class StoreProductsPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(title: Text(storeName)),
+
+        floatingActionButton: FloatingActionButton.extended(
+          icon: const Icon(Icons.message),
+          label: const Text('Message Store'),
+          onPressed: () async {
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please log in to send messages.')),
+              );
+              return;
+            }
+
+            try {
+              final storeSnap = await FirebaseFirestore.instance
+                  .collection('stores')
+                  .doc(storeId)
+                  .get();
+              if (!storeSnap.exists) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Store not found.')),
+                );
+                return;
+              }
+              final ownerId =
+                  (storeSnap.data() as Map<String, dynamic>)['ownerId'] as String?;
+              if (ownerId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Store owner not found.')),
+                );
+                return;
+              }
+
+              final buyerId = currentUser.uid;
+              final sellerId = ownerId;
+
+              final convQuery = await FirebaseFirestore.instance
+                  .collection('conversations')
+                  .where('buyerId', isEqualTo: buyerId)
+                  .where('sellerId', isEqualTo: sellerId)
+                  .limit(1)
+                  .get();
+
+              if (convQuery.docs.isEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('conversations')
+                    .add({
+                  'buyerId': buyerId,
+                  'sellerId': sellerId,
+                  'participants': [buyerId, sellerId],
+                  'updatedAt': FieldValue.serverTimestamp(),
+                  'lastMessage': null,
+                  'lastRead': {buyerId: FieldValue.serverTimestamp()},
+                });
+              }
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyNavRail(initialIndex: 1)
+                ),
+              );
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e')),
+              );
+            }
+          },
+        ),
+
         body: Column(
           children: [
-            if (storeBanner != null && storeBanner != "") 
-              Image.network(storeBanner!, height: 150, width: double.infinity, fit: BoxFit.cover),
+            if (storeBanner != null && storeBanner != "")
+              Image.network(
+                storeBanner!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (storeDescription != null && storeDescription != "")
-                    Text(storeDescription!, style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    Text(
+                      storeDescription!,
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
                   if (contactEmail != null || contactPhone != null)
                     Row(
                       children: [
                         if (contactEmail != null && contactEmail != "")
                           Expanded(
-                            child: Text("Email: $contactEmail", style: TextStyle(fontSize: 12)),
+                            child: Text("Email: $contactEmail",
+                                style: const TextStyle(fontSize: 12)),
                           ),
                         if (contactPhone != null && contactPhone != "")
                           Expanded(
-                            child: Text("Phone: $contactPhone", style: TextStyle(fontSize: 12)),
+                            child: Text("Phone: $contactPhone",
+                                style: const TextStyle(fontSize: 12)),
                           ),
                       ],
                     ),
@@ -56,22 +139,23 @@ class StoreProductsPage extends StatelessWidget {
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
-                  .collection('products')
-                  .where('storeId', isEqualTo: storeId)
-                  .snapshots(),
+                    .collection('products')
+                    .where('storeId', isEqualTo: storeId)
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(child: Text('No products found for this store.'));
+                    return const Center(
+                        child: Text('No products found for this store.'));
                   }
-      
+
                   final products = snapshot.data!.docs;
-      
+
                   return GridView.builder(
-                    padding: EdgeInsets.all(8),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
@@ -80,8 +164,9 @@ class StoreProductsPage extends StatelessWidget {
                     itemCount: products.length,
                     itemBuilder: (context, i) {
                       final docId = products[i].id;
-                      final product = products[i].data() as Map<String, dynamic>;
-                      
+                      final product =
+                          products[i].data() as Map<String, dynamic>;
+
                       return Card(
                         elevation: 3,
                         shape: RoundedRectangleBorder(
@@ -92,7 +177,8 @@ class StoreProductsPage extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ProductDetailPage(product: product, productId: docId),
+                                builder: (context) => ProductDetailPage(
+                                    product: product, productId: docId),
                               ),
                             );
                           },
@@ -100,61 +186,80 @@ class StoreProductsPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: product['imageUrl'] != null && product['imageUrl'] != ""
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                                    child: Image.network(
-                                      product['imageUrl'],
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Container(
-                                    color: Colors.grey[300],
-                                    child: Icon(Icons.image, size: 50, color: Colors.grey[600]),
-                                ),
+                                child: product['imageUrl'] != null &&
+                                        product['imageUrl'] != ""
+                                    ? ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(
+                                            top: Radius.circular(12)),
+                                        child: Image.network(
+                                          product['imageUrl'],
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : Container(
+                                        color: Colors.grey[300],
+                                        child: Icon(Icons.image,
+                                            size: 50,
+                                            color: Colors.grey[600]),
+                                      ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.all(8.0), 
+                                padding: const EdgeInsets.all(8.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       product['name'] ?? '',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    SizedBox(height: 4),
+                                    const SizedBox(height: 4),
                                     Builder(
                                       builder: (_) {
-                                        final sizes = (product['sizes'] != null && product['sizes'] is Map<String, dynamic>)
-                                            ? product['sizes'] as Map<String, dynamic>
-                                            : {};
+                                        final sizes =
+                                            (product['sizes'] != null &&
+                                                    product['sizes']
+                                                        is Map<String, dynamic>)
+                                                ? product['sizes']
+                                                    as Map<String, dynamic>
+                                                : {};
 
-                                        // figure out prices
                                         double? minPrice;
                                         double? maxPrice;
                                         if (sizes.isNotEmpty) {
-                                          final List<double> sizePrices = sizes.entries
-                                              .map((e) => (e.value['price'] as num?)?.toDouble() ?? 0)
-                                              .toList();
+                                          final List<double> sizePrices =
+                                              sizes.entries
+                                                  .map((e) =>
+                                                      (e.value['price'] as num?)
+                                                              ?.toDouble() ??
+                                                          0)
+                                                  .toList();
                                           if (sizePrices.isNotEmpty) {
-                                            minPrice = sizePrices.reduce((a, b) => a < b ? a : b);
-                                            maxPrice = sizePrices.reduce((a, b) => a > b ? a : b);
+                                            minPrice = sizePrices.reduce(
+                                                (a, b) => a < b ? a : b);
+                                            maxPrice = sizePrices.reduce(
+                                                (a, b) => a > b ? a : b);
                                           }
                                         }
 
-                                        final bool isRange = minPrice != null && maxPrice != null && minPrice != maxPrice;
+                                        final bool isRange = minPrice != null &&
+                                            maxPrice != null &&
+                                            minPrice != maxPrice;
 
-                                        // Widget that shows the review stars/avg
-                                        final reviewWidget = StreamBuilder<QuerySnapshot>(
+                                        final reviewWidget =
+                                            StreamBuilder<QuerySnapshot>(
                                           stream: FirebaseFirestore.instance
                                               .collection('products')
                                               .doc(docId)
                                               .collection('reviews')
                                               .snapshots(),
-                                          builder: (context, reviewSnapshot) {
-                                            if (reviewSnapshot.connectionState == ConnectionState.waiting) {
+                                          builder:
+                                              (context, reviewSnapshot) {
+                                            if (reviewSnapshot
+                                                    .connectionState ==
+                                                ConnectionState.waiting) {
                                               return const SizedBox(
                                                 width: 30,
                                                 height: 14,
@@ -162,44 +267,58 @@ class StoreProductsPage extends StatelessWidget {
                                                   child: SizedBox(
                                                     width: 10,
                                                     height: 10,
-                                                    child: CircularProgressIndicator(strokeWidth: 1),
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                            strokeWidth: 1),
                                                   ),
                                                 ),
                                               );
                                             }
-                                            if (!reviewSnapshot.hasData || reviewSnapshot.data!.docs.isEmpty) {
+                                            if (!reviewSnapshot.hasData ||
+                                                reviewSnapshot
+                                                    .data!.docs.isEmpty) {
                                               return const Text('No reviews',
-                                                  style: TextStyle(fontSize: 12, color: Colors.grey));
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey));
                                             }
 
                                             final reviews = reviewSnapshot.data!.docs;
                                             double total = 0;
                                             for (var r in reviews) {
                                               final data = r.data() as Map<String, dynamic>;
-                                              total += (data['rating'] ?? 0).toDouble();
+                                              total +=
+                                                  (data['rating'] ?? 0).toDouble();
                                             }
                                             final avg = total / reviews.length;
 
                                             return Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                const Icon(Icons.star, size: 14, color: Colors.amber),
+                                                const Icon(Icons.star,
+                                                    size: 14,
+                                                    color: Colors.amber),
                                                 const SizedBox(width: 2),
                                                 Text(avg.toStringAsFixed(1),
-                                                    style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.black87)),
                                               ],
                                             );
                                           },
                                         );
 
-                                        // Row if single price, Column if price range
                                         if (isRange) {
                                           return Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 '₱${minPrice.toStringAsFixed(2)} - ₱${maxPrice.toStringAsFixed(2)}',
-                                                style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold),
+                                                style: TextStyle(
+                                                    color: Colors.green[700],
+                                                    fontWeight:
+                                                        FontWeight.bold),
                                               ),
                                               const SizedBox(height: 2),
                                               reviewWidget,
@@ -213,21 +332,26 @@ class StoreProductsPage extends StatelessWidget {
                                                   : '₱N/A');
 
                                           return Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(priceText,
-                                                  style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold)),
+                                                  style: TextStyle(
+                                                      color: Colors.green[700],
+                                                      fontWeight:
+                                                          FontWeight.bold)),
                                               reviewWidget,
                                             ],
                                           );
                                         }
                                       },
                                     ),
-
                                     if (product['createdAt'] != null)
                                       Text(
                                         'Added: ${(product['createdAt'] as Timestamp).toDate().toString().split(' ')[0]}',
-                                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey[600]),
                                       ),
                                   ],
                                 ),
@@ -236,7 +360,7 @@ class StoreProductsPage extends StatelessWidget {
                           ),
                         ),
                       );
-                    }
+                    },
                   );
                 },
               ),

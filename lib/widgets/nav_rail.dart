@@ -7,6 +7,7 @@ import 'package:kampus_kart/pages/user/home_page.dart';
 import 'package:kampus_kart/pages/me_page.dart';
 import 'package:kampus_kart/pages/seller/store_homepage.dart';
 import 'package:kampus_kart/pages/seller/store_order_homepage.dart';
+import 'package:kampus_kart/pages/conversation_list_page.dart';
 
 class MyNavRail extends StatefulWidget {
   final bool showLogin;
@@ -149,7 +150,7 @@ class _MyNavRailState extends State<MyNavRail> {
         case 1:
           page = StoreOrderHomePage(); // Orders page
         case 2:
-          page = const Placeholder(); // Chat page
+          page = ConversationListPage(); // Chat page
         case 3:
           page = MePage(
             isSeller: isSeller!,
@@ -170,7 +171,7 @@ class _MyNavRailState extends State<MyNavRail> {
         case 0:
           page = HomePage();
         case 1:
-          page = const Placeholder(); // Chat page
+          page = ConversationListPage(); // Chat page
         case 2:
           page = const Placeholder(); // Notifications page
         case 3:
